@@ -45,7 +45,7 @@ function App() {
       formData.append("file2", finalFiles.lesson);
       formData.append("file3", finalFiles.overview);
 
-      const res = await fetch("http://localhost:5000/upload", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/upload`, {
         method: "POST",
         body: formData,
       });
