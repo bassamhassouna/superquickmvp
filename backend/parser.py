@@ -1,6 +1,5 @@
 import sys
 import os
-from dotenv import load_dotenv
 import fitz  # PyMuPDF
 from docx import Document
 from pptx import Presentation
@@ -84,7 +83,6 @@ Engagement and Interaction: Suggestion 1.
 
 Begin your detailed evaluation now."""
 
-load_dotenv()
 api_key = os.getenv("API_KEY")
 
 openai.api_key = api_key  # Set your API key here
