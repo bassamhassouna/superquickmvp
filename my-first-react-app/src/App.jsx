@@ -145,7 +145,7 @@ function App() {
               <br />
               <br />
               Our AI-powered tool provides instant, actionable feedback to improve
-              academic quality based on course development <a href="assets/rubric.docx" download="Rubric.docx">rubric</a>.
+              academic quality based on course development <a href="/rubric.docx" download="Rubric.docx">rubric</a>.
             </p>
           </div>
 
