@@ -319,11 +319,12 @@ function LoadingScreen() {
 function ResultsScreen({ response }) {
   console.log(response);
 
-  const relevanceMatch = response.match(/1\. Relevance Summary\s+([\s\S]*?)\s+2\. Rubric Evaluation/i);
+  const relevanceMatch = response.match(/1\.\s*(.*?)\s*-\s*(.*?)\$\s+([\s\S]*?)\s+2\. Rubric Evaluation/i);
   const rubricMatch = response.match(/2\. Rubric Evaluation\s+([\s\S]*?)\s+3\. Suggestions for Improvement/i);
   const suggestionsMatch = response.match(/3\. Suggestions for Improvement\s+([\s\S]*)/i);
 
-  const relevanceSummary = relevanceMatch ? relevanceMatch[1].trim() : "";
+  const relevanceTitle = relevanceMatch ? `${relevanceMatch[1]} - ${relevanceMatch[2]}` : "Relevance Summary";
+  const relevanceSummary = relevanceMatch ? relevanceMatch[3].trim() : "";
   const rubricText = rubricMatch ? rubricMatch[1].trim() : "";
   const suggestionsText = suggestionsMatch ? suggestionsMatch[1].trim() : "";
 
@@ -382,7 +383,7 @@ function ResultsScreen({ response }) {
           boxShadow: "0 4px 20px rgba(0, 0, 0, 0.05)",
         }}
       >
-        <h2 style={headingStyle}>Relevance Summary</h2>
+        <h2 style={headingStyle}>{relevanceTitle}</h2>
         <p style={paragraphStyle}>{relevanceSummary}</p>
 
         <h2 style={headingStyle}>Rubric Evaluation</h2>
