@@ -145,7 +145,7 @@ function App() {
               <br />
               <br />
               Our AI-powered tool provides instant, actionable feedback to improve
-              academic quality.
+              academic quality based on course development <a href="assets\rubric.docx" download="Rubric.docx">rubric</a> and add hyper link to it
             </p>
           </div>
 
@@ -192,7 +192,7 @@ function UploadScreen({ step, onFileUpload }) {
   const [dragActive, setDragActive] = useState(false);
 
   const fileLabels = {
-    upload2: "Upload Course Outline",
+    upload2: "Upload Course Syllabus",
     upload3: "Upload Lesson",
   };
 
