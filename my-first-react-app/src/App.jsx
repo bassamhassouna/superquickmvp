@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { MdCloudUpload, MdInsertDriveFile, MdArrowDropDown } from "react-icons/md";
 import { CSSTransition, SwitchTransition } from "react-transition-group";
-import { ChatOutput } from "./scripts/Root.jsx";
 
 
 function App() {
