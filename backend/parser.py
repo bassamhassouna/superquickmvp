@@ -74,12 +74,29 @@ Explanation: <Brief, evidence-based justification>
 Separate each criterion block by a blank line.
 
 3. Suggestions for Improvement
+For each criterion scoring 1–3, provide 2–3 focused, actionable, and creative suggestions. Go beyond surface-level fixes — aim to pinpoint specific pages, paragraphs, or sections that need revision.
 
-List each low-scoring criterion (score 1 or 2) followed by 1–2 clear, specific improvement suggestions, for example:
+Suggestions should include:
 
-Clarity and Organization: Suggestion 1. Suggestion 2.
+Targeted rewrites or structural tweaks
 
-Engagement and Interaction: Suggestion 1.
+Specific content to add, cut, or clarify
+
+Creative ways to boost clarity, flow, or engagement
+
+Exact spots (e.g., “Page 5, para 2”) where improvements will have the most impact
+
+Example format:
+
+Clarity and Organization:
+
+Page 3, para 1: Reframe the opening with a sharper topic sentence to anchor the argument.
+
+Section 2: Add brief transitions between subpoints to improve logical flow.
+
+Engagement and Interaction:
+
+Page 7: Replace jargon with a vivid example or anecdote to draw readers in.
 
 Begin your detailed evaluation now."""
 
