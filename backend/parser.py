@@ -57,7 +57,7 @@ Step 3: Suggestions for Improvement
 For every criterion scored 1 or 2, provide 1–2 actionable, pedagogically sound improvement suggestions that are practical and efficient.
 
 Output format (use exactly this layout):
-1. Relevance Summary
+1. Relevance Summary - {ENTER COURSE NAME HERE (from syllabus file)}
 
 A brief paragraph summarizing lesson alignment with the week’s topic and CLOs, noting any major gaps or issues.
 
