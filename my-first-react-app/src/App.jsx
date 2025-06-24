@@ -193,7 +193,7 @@ function UploadScreen({ step, onFileUpload }) {
 
   const fileLabels = {
     upload2: "Upload Course Syllabus",
-    upload3: "Upload Lesson",
+    upload3: "Upload Lecture Slides",
   };
 
   const stepNumbers = {
