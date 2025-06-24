@@ -319,7 +319,7 @@ function LoadingScreen() {
 function ResultsScreen({ response }) {
   console.log(response);
 
-  const relevanceMatch = response.match(/1\.\s[^.]+(?=\.)\.\s+([\s\S]*?)\s+2\. Rubric Evaluation/i);
+  const relevanceMatch = response.match(/1\. Relevance Summary\s+([\s\S]*?)\s+2\. Rubric Evaluation/i);
   const rubricMatch = response.match(/2\. Rubric Evaluation\s+([\s\S]*?)\s+3\. Suggestions for Improvement/i);
   const suggestionsMatch = response.match(/3\. Suggestions for Improvement\s+([\s\S]*)/i);
 
