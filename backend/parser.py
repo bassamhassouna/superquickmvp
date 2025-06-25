@@ -158,8 +158,8 @@ def call_openai_api(parsed_text, system_prompt):
     response = openai.chat.completions.create(
         model="gpt-4o-mini",
         messages=messages,
-        max_tokens=10500,
-        temperature=0.7
+        max_tokens=5000,
+        temperature=0.45
     )
     return response.choices[0].message.content
 
@@ -182,7 +182,7 @@ if __name__ == '__main__':
     token_count = count_tokens(combined_prompt)
     print(f"\nTotal Token Count for combined prompt: {token_count}")
 
-    if token_count > 10500:
+    if token_count > 5000:
         print("⚠️ Skipping sending combined prompt: Too many tokens for gpt-4.1.")
         print("\n--- Payload to OpenAI (not sent) ---")
         print({
