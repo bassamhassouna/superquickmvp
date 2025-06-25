@@ -1,15 +1,18 @@
-import sys
 import os
+import sys
+import time
+import hashlib
 import fitz  # PyMuPDF
 from docx import Document
 from pptx import Presentation
 import tiktoken
-import openai  # Re-enabled OpenAI import
+import openai
+import concurrent.futures
 
-# UTF-8 fix for Windows consoles
+# Enable UTF-8 output (Windows-safe)
 sys.stdout.reconfigure(encoding='utf-8')
 
-# Config variables
+# Config
 SYSTEM_PROMPT = """You are an expert AI tasked with rigorously evaluating university-level course materials.
 
 You will receive three inputs:
@@ -99,61 +102,81 @@ Engagement and Interaction:
 Page 7: Replace jargon with a vivid example or anecdote to draw readers in.
 
 Begin your detailed evaluation now."""
+openai.api_key = os.getenv("API_KEY")
 
-api_key = os.getenv("API_KEY")
+CACHE_DIR = ".cache"
+os.makedirs(CACHE_DIR, exist_ok=True)
 
-openai.api_key = api_key  # Set your API key here
+titles = ["Rubric", "Lesson", "Course Overview"]
 
+# Utility: hash file content for caching
+def hash_file(filepath):
+    hasher = hashlib.sha256()
+    with open(filepath, 'rb') as f:
+        hasher.update(f.read())
+    return hasher.hexdigest()
+
+# Parse DOCX
 def parse_docx(file_path):
     doc = Document(file_path)
-    text = ""
-    page_number = 1
-    for para in doc.paragraphs:
-        if para.style.name.startswith('Heading'):
-            text += f"\n[Page {page_number}] {para.text.upper()}\n"
-        else:
-            text += f"{para.text}\n"
-    return text.strip()
+    return "\n".join(
+        f"\n[Page {i+1}] {para.text}" if para.style.name.startswith('Heading') else para.text
+        for i, para in enumerate(doc.paragraphs) if para.text.strip()
+    )
 
+# Parse PDF
 def parse_pdf(file_path):
     doc = fitz.open(file_path)
-    result = []
-    for page_num, page in enumerate(doc, start=1):
-        text = page.get_text()
-        if text.strip():
-            result.append(f"[Page {page_num}]\n{text.strip()}")
-    return "\n\n".join(result)
+    return "\n\n".join(
+        f"[Page {i+1}]\n{page.get_text().strip()}" for i, page in enumerate(doc) if page.get_text().strip()
+    )
 
+# Parse PPTX
 def parse_pptx(file_path):
     prs = Presentation(file_path)
-    text_output = []
-    for idx, slide in enumerate(prs.slides, start=1):
-        slide_text = [f"[Slide {idx}]"]
+    output = []
+    for idx, slide in enumerate(prs.slides, 1):
+        texts = [f"[Slide {idx}]"]
         for shape in slide.shapes:
-            if hasattr(shape, "text"):
-                slide_text.append(shape.text.strip())
-        text_output.append("\n".join(slide_text))
-    return "\n\n".join(text_output)
+            if hasattr(shape, "text") and shape.text.strip():
+                texts.append(shape.text.strip())
+        output.append("\n".join(texts))
+    return "\n\n".join(output)
 
+# Smart parser dispatcher
 def parse_file(file_path):
     ext = os.path.splitext(file_path)[1].lower()
-    if ext == '.pdf':
+    if ext == ".pdf":
         return parse_pdf(file_path)
-    elif ext == '.docx':
+    elif ext == ".docx":
         return parse_docx(file_path)
-    elif ext == '.pptx':
+    elif ext == ".pptx":
         return parse_pptx(file_path)
     else:
         return "Unsupported file type."
 
+# Count tokens
 def count_tokens(text):
     enc = tiktoken.get_encoding("cl100k_base")
     return len(enc.encode(text))
 
-def call_openai_api(parsed_text, system_prompt):
+# Cache-aware parse wrapper
+def cached_parse(file_path):
+    file_hash = hash_file(file_path)
+    cache_path = os.path.join(CACHE_DIR, f"{file_hash}.txt")
+    if os.path.exists(cache_path):
+        with open(cache_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    parsed = parse_file(file_path)
+    with open(cache_path, 'w', encoding='utf-8') as f:
+        f.write(parsed)
+    return parsed
+
+# Call OpenAI
+def call_openai_api(prompt):
     messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": parsed_text}
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "user", "content": prompt}
     ]
     response = openai.chat.completions.create(
         model="gpt-4o-mini",
@@ -163,39 +186,45 @@ def call_openai_api(parsed_text, system_prompt):
     )
     return response.choices[0].message.content
 
-
-if __name__ == '__main__':
-    if len(sys.argv) != 4:
-        print("Usage: python parser.py <file1> <file2> <file3>")
+# Main
+def main(file_paths):
+    if len(file_paths) != 3:
+        print("Usage: python fast_parser.py <rubric.docx> <lesson.pptx> <overview.pdf>")
         sys.exit(1)
 
-    titles = ["Rubric", "Lesson", "Course Overview"]
-    combined_text_parts = []
+    # Benchmark: Start timer
+    t0 = time.time()
 
-    for i in range(1, 4):
-        file_path = sys.argv[i]
-        print(f"\n--- Parsing File {i} ({titles[i-1]}): {file_path} ---")
-        parsed_text = parse_file(file_path)
-        combined_text_parts.append(f"### {titles[i-1]} ###\n{parsed_text}")
+    print("\n--- Parsing files in parallel ---")
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        parsed_results = list(executor.map(cached_parse, file_paths))
 
-    combined_prompt = "\n\n".join(combined_text_parts)
-    token_count = count_tokens(combined_prompt)
-    print(f"\nTotal Token Count for combined prompt: {token_count}")
+    for i, result in enumerate(parsed_results):
+        print(f"\n✅ Finished parsing: {titles[i]}")
+        print(f"⏱️ Duration: {round(time.time() - t0, 2)}s")
+
+    combined = "\n\n".join(
+        f"### {titles[i]} ###\n{parsed_results[i]}" for i in range(3)
+    )
+
+    # Benchmark: Token count
+    token_count = count_tokens(combined)
+    print(f"\n🧠 Total Tokens: {token_count}")
+    print(f"⏱️ Total parsing time: {round(time.time() - t0, 2)}s")
 
     if token_count > 5000:
-        print("⚠️ Skipping sending combined prompt: Too many tokens for gpt-4.1.")
-        print("\n--- Payload to OpenAI (not sent) ---")
-        print({
-            "messages": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": combined_prompt}
-            ]
-        })
-    else:
-        print("\n--- Sending prompt to OpenAI ---")
-        try:
-            result = call_openai_api(combined_prompt, SYSTEM_PROMPT)
-            print("\n--- OpenAI Response ---")
-            print(result)
-        except Exception as e:
-            print(f"❌ OpenAI API call failed: {e}")
+        print("⚠️ Too many tokens. Skipping OpenAI call.")
+        sys.exit(1)
+
+    # Call OpenAI
+    print("\n--- Calling OpenAI API ---")
+    start = time.time()
+    try:
+        response = call_openai_api(combined)
+        print(f"\n✅ OpenAI Response (⏱️ {round(time.time() - start, 2)}s):\n")
+        print(response)
+    except Exception as e:
+        print(f"❌ OpenAI API call failed: {e}")
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
