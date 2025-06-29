@@ -1,3 +1,13 @@
+import base64
+import json
+
+creds_json = base64.b64decode(os.getenv("GOOGLE_CREDENTIALS_B64")).decode("utf-8")
+with open("credentials.json", "w") as f:
+    f.write(creds_json)
+
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+
 import os
 import sys
 import time
@@ -8,8 +18,12 @@ from pptx import Presentation
 import tiktoken
 import openai
 import concurrent.futures
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+from datetime import datetime
+import re
 
-# Enable UTF-8 output (Windows-safe)
+# Enable UTF-8 output
 sys.stdout.reconfigure(encoding='utf-8')
 
 # Config
@@ -109,6 +123,25 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 
 titles = ["Rubric", "Lesson", "Course Overview"]
 
+# Google Sheets Setup
+def init_sheets():
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+    client = gspread.authorize(creds)
+    sheet = client.open("Lecture Evaluation Log").sheet1
+    return sheet
+
+def log_to_sheets(sheet, syllabus_file, lesson_file, rubric_grades, parse_time, openai_time):
+    row = [
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        os.path.basename(syllabus_file),
+        os.path.basename(lesson_file),
+        rubric_grades,
+        f"{parse_time:.2f}s",
+        f"{openai_time:.2f}s"
+    ]
+    sheet.append_row(row)
+
 # Utility: hash file content for caching
 def hash_file(filepath):
     hasher = hashlib.sha256()
@@ -181,10 +214,18 @@ def call_openai_api(prompt):
     response = openai.chat.completions.create(
         model="gpt-4o-mini",
         messages=messages,
-        max_tokens=5000,
-        temperature=0.45
+        max_tokens=4096,
+        temperature=0.45,
+        top_p=1.0,
+        frequency_penalty=0.1,
+        presence_penalty=0.0
     )
     return response.choices[0].message.content
+
+# Extract rubric section using regex
+def extract_rubric_section(response_text):
+    match = re.search(r"2\.\s*Rubric Evaluation\s+([\s\S]*?)\s+3\.\s*Suggestions for Improvement", response_text, re.IGNORECASE)
+    return match.group(1).strip() if match else "N/A"
 
 # Main
 def main(file_paths):
@@ -192,7 +233,6 @@ def main(file_paths):
         print("Usage: python fast_parser.py <rubric.docx> <lesson.pptx> <overview.pdf>")
         sys.exit(1)
 
-    # Benchmark: Start timer
     t0 = time.time()
 
     print("\n--- Parsing files in parallel ---")
@@ -200,29 +240,31 @@ def main(file_paths):
         parsed_results = list(executor.map(cached_parse, file_paths))
 
     for i, result in enumerate(parsed_results):
-        print(f"\n✅ Finished parsing: {titles[i]}")
-        print(f"⏱️ Duration: {round(time.time() - t0, 2)}s")
+        print(f"\n✅ Finished parsing: {titles[i]} ({round(time.time() - t0, 2)}s)")
 
-    combined = "\n\n".join(
-        f"### {titles[i]} ###\n{parsed_results[i]}" for i in range(3)
-    )
-
-    # Benchmark: Token count
+    combined = "\n\n".join(f"### {titles[i]} ###\n{parsed_results[i]}" for i in range(3))
     token_count = count_tokens(combined)
+    parse_duration = time.time() - t0
+
     print(f"\n🧠 Total Tokens: {token_count}")
-    print(f"⏱️ Total parsing time: {round(time.time() - t0, 2)}s")
+    print(f"⏱️ Parsing Duration: {round(parse_duration, 2)}s")
 
     if token_count > 5000:
         print("⚠️ Too many tokens. Skipping OpenAI call.")
         sys.exit(1)
 
-    # Call OpenAI
     print("\n--- Calling OpenAI API ---")
-    start = time.time()
+    t1 = time.time()
     try:
         response = call_openai_api(combined)
-        print(f"\n✅ OpenAI Response (⏱️ {round(time.time() - start, 2)}s):\n")
+        api_duration = time.time() - t1
+        print(f"\n✅ OpenAI Response (⏱️ {round(api_duration, 2)}s):\n")
         print(response)
+
+        rubric_eval = extract_rubric_section(response)
+        sheet = init_sheets()
+        log_to_sheets(sheet, file_paths[2], file_paths[1], rubric_eval, parse_duration, api_duration)
+
     except Exception as e:
         print(f"❌ OpenAI API call failed: {e}")
 
