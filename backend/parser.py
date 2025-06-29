@@ -1,13 +1,3 @@
-import base64
-import json
-
-creds_json = base64.b64decode(os.getenv("GOOGLE_CREDENTIALS_B64")).decode("utf-8")
-with open("credentials.json", "w") as f:
-    f.write(creds_json)
-
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
-
 import os
 import sys
 import time
@@ -25,6 +15,16 @@ import re
 
 # Enable UTF-8 output
 sys.stdout.reconfigure(encoding='utf-8')
+
+import base64
+import json
+
+creds_json = base64.b64decode(os.getenv("GOOGLE_CREDENTIALS_B64")).decode("utf-8")
+with open("credentials.json", "w") as f:
+    f.write(creds_json)
+
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
 
 # Config
 SYSTEM_PROMPT = """You are an expert AI tasked with rigorously evaluating university-level course materials.
